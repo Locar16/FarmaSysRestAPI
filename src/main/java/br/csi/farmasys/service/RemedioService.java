@@ -1,5 +1,6 @@
 package br.csi.farmasys.service;
 
+import br.csi.farmasys.model.fornecedor.FornecedorRepository;
 import br.csi.farmasys.model.remedio.Remedio;
 import br.csi.farmasys.model.remedio.RemedioRepository;
 import jakarta.transaction.Transactional;
@@ -12,9 +13,11 @@ import java.util.UUID;
 public class RemedioService {
 
     private final RemedioRepository repository;
+    private final FornecedorRepository fornecedorRepository;
 
-    public RemedioService(RemedioRepository repository) {
+    public RemedioService(RemedioRepository repository, FornecedorRepository fornecedorRepository) {
         this.repository = repository;
+        this.fornecedorRepository = fornecedorRepository;
     }
 
     public List<Remedio> listar() {
@@ -31,11 +34,13 @@ public class RemedioService {
 
     @Transactional
     public void salvar(Remedio remedio) {
+        vincularFornecedor(remedio);
         this.repository.save(remedio);
     }
 
     @Transactional
     public void atualizar(Remedio remedio) {
+        vincularFornecedor(remedio);
         this.repository.save(remedio);
     }
 
@@ -44,6 +49,7 @@ public class RemedioService {
         Remedio existente = this.repository.findByUuid(remedio.getUuid());
         if (existente != null) {
             remedio.setId(existente.getId());
+            vincularFornecedor(remedio);
             this.repository.save(remedio);
         }
     }
@@ -56,5 +62,15 @@ public class RemedioService {
     @Transactional
     public void deletarUUID(String uuid) {
         this.repository.deleteByUuid(UUID.fromString(uuid));
+    }
+
+    private void vincularFornecedor(Remedio remedio) {
+        if (remedio.getFornecedor() != null && remedio.getFornecedor().getId() != null) {
+            remedio.setFornecedor(
+                this.fornecedorRepository.findById(remedio.getFornecedor().getId()).orElseThrow()
+            );
+        } else {
+            remedio.setFornecedor(null);
+        }
     }
 }

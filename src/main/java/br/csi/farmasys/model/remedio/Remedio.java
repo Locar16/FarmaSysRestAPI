@@ -1,5 +1,6 @@
 package br.csi.farmasys.model.remedio;
 
+import br.csi.farmasys.model.fornecedor.Fornecedor;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -46,4 +47,9 @@ public class Remedio {
     @Column(name = "necessita_receita")
     @Schema(description = "Indica se o remédio necessita receita médica", example = "false")
     private Boolean necessitaReceita;
+
+    @ManyToOne
+    @JoinColumn(name = "fornecedor_id")
+    @Schema(description = "Fornecedor do remédio (opcional). No envio, basta informar o id: {\"id\": 1}")
+    private Fornecedor fornecedor;
 }
