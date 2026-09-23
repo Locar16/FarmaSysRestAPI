@@ -1,5 +1,6 @@
 package br.csi.farmasys.controller;
 
+import br.csi.farmasys.model.remedio.DadosRemedio;
 import br.csi.farmasys.model.remedio.Remedio;
 import br.csi.farmasys.service.RemedioService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -9,9 +10,14 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/remedio")
@@ -29,8 +35,8 @@ public class RemedioController {
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso")
     })
-    public List<Remedio> listar() {
-        return this.service.listar();
+    public ResponseEntity<List<Remedio>> listar() {
+        return ResponseEntity.ok(this.service.listar());
     }
 
     @GetMapping("/{id}")
@@ -41,11 +47,11 @@ public class RemedioController {
                 schema = @Schema(implementation = Remedio.class))),
         @ApiResponse(responseCode = "404", description = "Remédio não encontrado", content = @Content)
     })
-    public Remedio remedio(
+    public ResponseEntity<Remedio> remedio(
         @Parameter(description = "ID do remédio a ser buscado", required = true)
         @PathVariable Long id
     ) {
-        return this.service.getRemedio(id);
+        return ResponseEntity.ok(this.service.getRemedio(id));
     }
 
     @PostMapping
@@ -54,20 +60,32 @@ public class RemedioController {
         @ApiResponse(responseCode = "201", description = "Remédio criado com sucesso",
             content = @Content(mediaType = "application/json",
                 schema = @Schema(implementation = Remedio.class))),
-        @ApiResponse(responseCode = "400", description = "Dados inválidos", content = @Content)
+        @ApiResponse(responseCode = "400", description = "Dados inválidos", content = @Content),
+        @ApiResponse(responseCode = "404", description = "Fornecedor não encontrado", content = @Content)
     })
-    public void salvar(@RequestBody Remedio remedio) {
-        this.service.salvar(remedio);
+    public ResponseEntity<Remedio> salvar(@RequestBody @Valid DadosRemedio dados,
+                                          UriComponentsBuilder uriBuilder) {
+        Remedio remedio = this.service.salvar(dados);
+        URI uri = uriBuilder.path("/remedio/{id}").buildAndExpand(remedio.getId()).toUri();
+        return ResponseEntity.created(uri).body(remedio);
     }
 
-    @PutMapping
+    @PutMapping("/{id}")
     @Operation(summary = "Atualizar um remédio", description = "Atualiza um remédio existente")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Remédio atualizado com sucesso"),
+        @ApiResponse(responseCode = "200", description = "Remédio atualizado com sucesso",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = Remedio.class))),
+        @ApiResponse(responseCode = "400", description = "Dados inválidos", content = @Content),
         @ApiResponse(responseCode = "404", description = "Remédio não encontrado", content = @Content)
     })
-    public void atualizar(@RequestBody Remedio remedio) {
-        this.service.atualizar(remedio);
+    public ResponseEntity<Remedio> atualizar(
+        @Parameter(description = "ID do remédio a ser atualizado", required = true)
+        @PathVariable Long id,
+        @RequestBody @Valid DadosRemedio dados
+    ) {
+        Remedio remedio = this.service.atualizar(id, dados);
+        return ResponseEntity.ok().body(remedio);
     }
 
     @DeleteMapping("/{id}")
@@ -76,11 +94,12 @@ public class RemedioController {
         @ApiResponse(responseCode = "204", description = "Remédio excluído com sucesso"),
         @ApiResponse(responseCode = "404", description = "Remédio não encontrado", content = @Content)
     })
-    public void deletar(
+    public ResponseEntity<Void> deletar(
         @Parameter(description = "ID do remédio a ser removido", required = true)
         @PathVariable Long id
     ) {
         this.service.excluir(id);
+        return ResponseEntity.noContent().build();
     }
 
     // ==================== Endpoints por UUID (ocultando o ID interno) ====================
@@ -93,21 +112,29 @@ public class RemedioController {
                 schema = @Schema(implementation = Remedio.class))),
         @ApiResponse(responseCode = "404", description = "Remédio não encontrado", content = @Content)
     })
-    public Remedio remedioUuid(
+    public ResponseEntity<Remedio> remedioUuid(
         @Parameter(description = "UUID do remédio a ser buscado", required = true)
-        @PathVariable String uuid
+        @PathVariable UUID uuid
     ) {
-        return this.service.getRemedioUUID(uuid);
+        return ResponseEntity.ok(this.service.getRemedioUUID(uuid));
     }
 
-    @PutMapping("/uuid")
+    @PutMapping("/uuid/{uuid}")
     @Operation(summary = "Atualizar remédio por UUID", description = "Atualiza um remédio existente localizando-o pelo UUID")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Remédio atualizado com sucesso"),
+        @ApiResponse(responseCode = "200", description = "Remédio atualizado com sucesso",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = Remedio.class))),
+        @ApiResponse(responseCode = "400", description = "Dados inválidos", content = @Content),
         @ApiResponse(responseCode = "404", description = "Remédio não encontrado", content = @Content)
     })
-    public void atualizarUuid(@RequestBody Remedio remedio) {
-        this.service.atualizarUUID(remedio);
+    public ResponseEntity<Remedio> atualizarUuid(
+        @Parameter(description = "UUID do remédio a ser atualizado", required = true)
+        @PathVariable UUID uuid,
+        @RequestBody @Valid DadosRemedio dados
+    ) {
+        Remedio remedio = this.service.atualizarUUID(uuid, dados);
+        return ResponseEntity.ok().body(remedio);
     }
 
     @DeleteMapping("/uuid/{uuid}")
@@ -116,10 +143,11 @@ public class RemedioController {
         @ApiResponse(responseCode = "204", description = "Remédio excluído com sucesso"),
         @ApiResponse(responseCode = "404", description = "Remédio não encontrado", content = @Content)
     })
-    public void deletarUuid(
+    public ResponseEntity<Void> deletarUuid(
         @Parameter(description = "UUID do remédio a ser removido", required = true)
-        @PathVariable String uuid
+        @PathVariable UUID uuid
     ) {
-        this.service.deletarUUID(uuid);
+        this.service.excluirUUID(uuid);
+        return ResponseEntity.noContent().build();
     }
 }

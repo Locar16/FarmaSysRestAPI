@@ -1,6 +1,7 @@
 package br.csi.farmasys.controller;
 
 import br.csi.farmasys.model.cliente.Cliente;
+import br.csi.farmasys.model.cliente.DadosCliente;
 import br.csi.farmasys.service.ClienteService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -9,9 +10,14 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/cliente")
@@ -29,8 +35,8 @@ public class ClienteController {
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso")
     })
-    public List<Cliente> listar() {
-        return this.service.listar();
+    public ResponseEntity<List<Cliente>> listar() {
+        return ResponseEntity.ok(this.service.listar());
     }
 
     @GetMapping("/{id}")
@@ -41,11 +47,11 @@ public class ClienteController {
                 schema = @Schema(implementation = Cliente.class))),
         @ApiResponse(responseCode = "404", description = "Cliente não encontrado", content = @Content)
     })
-    public Cliente cliente(
+    public ResponseEntity<Cliente> cliente(
         @Parameter(description = "ID do cliente a ser buscado", required = true)
         @PathVariable Long id
     ) {
-        return this.service.getCliente(id);
+        return ResponseEntity.ok(this.service.getCliente(id));
     }
 
     @PostMapping
@@ -56,18 +62,29 @@ public class ClienteController {
                 schema = @Schema(implementation = Cliente.class))),
         @ApiResponse(responseCode = "400", description = "Dados inválidos", content = @Content)
     })
-    public void salvar(@RequestBody Cliente cliente) {
-        this.service.salvar(cliente);
+    public ResponseEntity<Cliente> salvar(@RequestBody @Valid DadosCliente dados,
+                                          UriComponentsBuilder uriBuilder) {
+        Cliente cliente = this.service.salvar(dados);
+        URI uri = uriBuilder.path("/cliente/{id}").buildAndExpand(cliente.getId()).toUri();
+        return ResponseEntity.created(uri).body(cliente);
     }
 
-    @PutMapping
+    @PutMapping("/{id}")
     @Operation(summary = "Atualizar um cliente", description = "Atualiza um cliente existente")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Cliente atualizado com sucesso"),
+        @ApiResponse(responseCode = "200", description = "Cliente atualizado com sucesso",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = Cliente.class))),
+        @ApiResponse(responseCode = "400", description = "Dados inválidos", content = @Content),
         @ApiResponse(responseCode = "404", description = "Cliente não encontrado", content = @Content)
     })
-    public void atualizar(@RequestBody Cliente cliente) {
-        this.service.atualizar(cliente);
+    public ResponseEntity<Cliente> atualizar(
+        @Parameter(description = "ID do cliente a ser atualizado", required = true)
+        @PathVariable Long id,
+        @RequestBody @Valid DadosCliente dados
+    ) {
+        Cliente cliente = this.service.atualizar(id, dados);
+        return ResponseEntity.ok().body(cliente);
     }
 
     @DeleteMapping("/{id}")
@@ -76,11 +93,12 @@ public class ClienteController {
         @ApiResponse(responseCode = "204", description = "Cliente excluído com sucesso"),
         @ApiResponse(responseCode = "404", description = "Cliente não encontrado", content = @Content)
     })
-    public void deletar(
+    public ResponseEntity<Void> deletar(
         @Parameter(description = "ID do cliente a ser removido", required = true)
         @PathVariable Long id
     ) {
         this.service.excluir(id);
+        return ResponseEntity.noContent().build();
     }
 
     // ==================== Endpoints por UUID (ocultando o ID interno) ====================
@@ -93,21 +111,29 @@ public class ClienteController {
                 schema = @Schema(implementation = Cliente.class))),
         @ApiResponse(responseCode = "404", description = "Cliente não encontrado", content = @Content)
     })
-    public Cliente clienteUuid(
+    public ResponseEntity<Cliente> clienteUuid(
         @Parameter(description = "UUID do cliente a ser buscado", required = true)
-        @PathVariable String uuid
+        @PathVariable UUID uuid
     ) {
-        return this.service.getClienteUUID(uuid);
+        return ResponseEntity.ok(this.service.getClienteUUID(uuid));
     }
 
-    @PutMapping("/uuid")
+    @PutMapping("/uuid/{uuid}")
     @Operation(summary = "Atualizar cliente por UUID", description = "Atualiza um cliente existente localizando-o pelo UUID")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Cliente atualizado com sucesso"),
+        @ApiResponse(responseCode = "200", description = "Cliente atualizado com sucesso",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = Cliente.class))),
+        @ApiResponse(responseCode = "400", description = "Dados inválidos", content = @Content),
         @ApiResponse(responseCode = "404", description = "Cliente não encontrado", content = @Content)
     })
-    public void atualizarUuid(@RequestBody Cliente cliente) {
-        this.service.atualizarUUID(cliente);
+    public ResponseEntity<Cliente> atualizarUuid(
+        @Parameter(description = "UUID do cliente a ser atualizado", required = true)
+        @PathVariable UUID uuid,
+        @RequestBody @Valid DadosCliente dados
+    ) {
+        Cliente cliente = this.service.atualizarUUID(uuid, dados);
+        return ResponseEntity.ok().body(cliente);
     }
 
     @DeleteMapping("/uuid/{uuid}")
@@ -116,10 +142,11 @@ public class ClienteController {
         @ApiResponse(responseCode = "204", description = "Cliente excluído com sucesso"),
         @ApiResponse(responseCode = "404", description = "Cliente não encontrado", content = @Content)
     })
-    public void deletarUuid(
+    public ResponseEntity<Void> deletarUuid(
         @Parameter(description = "UUID do cliente a ser removido", required = true)
-        @PathVariable String uuid
+        @PathVariable UUID uuid
     ) {
-        this.service.deletarUUID(uuid);
+        this.service.excluirUUID(uuid);
+        return ResponseEntity.noContent().build();
     }
 }

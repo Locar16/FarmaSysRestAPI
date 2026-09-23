@@ -1,8 +1,11 @@
 package br.csi.farmasys.service;
 
+import br.csi.farmasys.model.fornecedor.Fornecedor;
 import br.csi.farmasys.model.fornecedor.FornecedorRepository;
+import br.csi.farmasys.model.remedio.DadosRemedio;
 import br.csi.farmasys.model.remedio.Remedio;
 import br.csi.farmasys.model.remedio.RemedioRepository;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -25,52 +28,62 @@ public class RemedioService {
     }
 
     public Remedio getRemedio(Long id) {
-        return this.repository.findById(id).orElse(null);
+        return this.repository.findById(id).orElseThrow(EntityNotFoundException::new);
     }
 
-    public Remedio getRemedioUUID(String uuid) {
-        return this.repository.findByUuid(UUID.fromString(uuid));
-    }
-
-    @Transactional
-    public void salvar(Remedio remedio) {
-        vincularFornecedor(remedio);
-        this.repository.save(remedio);
-    }
-
-    @Transactional
-    public void atualizar(Remedio remedio) {
-        vincularFornecedor(remedio);
-        this.repository.save(remedio);
-    }
-
-    @Transactional
-    public void atualizarUUID(Remedio remedio) {
-        Remedio existente = this.repository.findByUuid(remedio.getUuid());
-        if (existente != null) {
-            remedio.setId(existente.getId());
-            vincularFornecedor(remedio);
-            this.repository.save(remedio);
+    public Remedio getRemedioUUID(UUID uuid) {
+        Remedio remedio = this.repository.findByUuid(uuid);
+        if (remedio == null) {
+            throw new EntityNotFoundException();
         }
+        return remedio;
+    }
+
+    @Transactional
+    public Remedio salvar(DadosRemedio dados) {
+        Remedio remedio = new Remedio();
+        aplicarDados(remedio, dados);
+        return this.repository.save(remedio);
+    }
+
+    @Transactional
+    public Remedio atualizar(Long id, DadosRemedio dados) {
+        Remedio remedio = getRemedio(id);
+        aplicarDados(remedio, dados);
+        return this.repository.save(remedio);
+    }
+
+    @Transactional
+    public Remedio atualizarUUID(UUID uuid, DadosRemedio dados) {
+        Remedio remedio = getRemedioUUID(uuid);
+        aplicarDados(remedio, dados);
+        return this.repository.save(remedio);
     }
 
     @Transactional
     public void excluir(Long id) {
-        this.repository.deleteById(id);
+        this.repository.delete(getRemedio(id));
     }
 
     @Transactional
-    public void deletarUUID(String uuid) {
-        this.repository.deleteByUuid(UUID.fromString(uuid));
+    public void excluirUUID(UUID uuid) {
+        this.repository.delete(getRemedioUUID(uuid));
     }
 
-    private void vincularFornecedor(Remedio remedio) {
-        if (remedio.getFornecedor() != null && remedio.getFornecedor().getId() != null) {
-            remedio.setFornecedor(
-                this.fornecedorRepository.findById(remedio.getFornecedor().getId()).orElseThrow()
-            );
-        } else {
-            remedio.setFornecedor(null);
+    private void aplicarDados(Remedio remedio, DadosRemedio dados) {
+        remedio.setNome(dados.nome());
+        remedio.setPrincipioAtivo(dados.principioAtivo());
+        remedio.setPreco(dados.preco());
+        remedio.setQuantidadeEstoque(dados.quantidadeEstoque());
+        remedio.setNecessitaReceita(dados.necessitaReceita());
+        remedio.setFornecedor(buscarFornecedor(dados.fornecedorId()));
+    }
+
+    private Fornecedor buscarFornecedor(Long fornecedorId) {
+        if (fornecedorId == null) {
+            return null;
         }
+        return this.fornecedorRepository.findById(fornecedorId)
+            .orElseThrow(EntityNotFoundException::new);
     }
 }
